@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "eamodio.gitlens",
+    "pkief.material-icon-theme",
+    "eg2.vscode-npm-script",
+    "streetsidesoftware.code-spell-checker",
+    "dbaeumer.vscode-eslint",
+    "wayou.vscode-todo-highlight",
+    "donjayamanne.githistory",
+    "joelday.docthis",
+    "octref.vetur",
+    "zxh404.vscode-proto3",
+    "stuartzhang.stylelint-stzhang"
+  ]
+}
