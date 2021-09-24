@@ -12,22 +12,12 @@
     "baseUrl": ".",
     "noImplicitAny": false,
     "resolveJsonModule": true,
-    "types": [
-      "webpack-env",
-      "vite/client"
-    ],
-    "typeRoots": ["/types", "/node_modules/@types"],
+    "types": ["webpack-env", "vite/client"],
+    "typeRoots": ["./node_modules/@types/", "./types"],
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     },
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable",
-      "scripthost"
-    ]
+    "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
   },
   "include": [
     "src/**/*.ts",
@@ -35,9 +25,12 @@
     "src/**/*.vue",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    "src/**/*.d.ts",],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+    "types/**/*.d.ts",
+    "types/**/*.ts",
+    "src/**/*.d.ts",
+    "build/**/*.ts",
+    "build/**/*.d.ts",
+    "vite.config.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }

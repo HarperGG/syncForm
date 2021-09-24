@@ -1,61 +1,29 @@
-<template>
-  <n-form v-bind="getBindValue" ref="formElRef" :model="formModel">
-    <n-grid v-bind="getRow">
-      <slot name="formHeader"></slot>
-      <template v-for="schema in getSchema" :key="schema.field">
-        <FormItem
-          :table-action="tableAction"
-          :form-action-type="formActionType"
-          :schema="schema"
-          :form-props="getProps"
-          :all-default-values="defaultValueRef"
-          :form-model="formModel"
-          :set-form-model="setFormModel"
-        >
-          <template v-for="item in Object.keys($slots)" #[item]="data">
-            <slot :name="item" v-bind="data || {}"></slot>
-          </template>
-        </FormItem>
-      </template>
-      <slot name="formFooter"></slot>
-    </n-grid>
-  </n-form>
-</template>
-<script lang="ts">
-import type { FormActionType, FormProps, FormSchema } from "./types/form"
-import type { AdvanceState } from "./types/hooks"
-import type { Ref } from "vue"
+import { FormActionType, FormProps, FormSchema } from "./types/form"
+import { AdvanceState } from "./types/hooks"
+import { h, Ref, resolveComponent, VNode, VNodeChild, renderSlot, watchEffect } from "vue"
 
 import { defineComponent, reactive, ref, computed, unref, onMounted, watch, nextTick } from "vue"
-import { Form, Row } from "ant-design-vue"
-import { NForm, NRow } from "naive-ui"
+import { NForm, NRow, NGrid } from "naive-ui"
 import FormItem from "./components/FormItem"
-// import FormAction from "./components/FormAction.vue"
-
 import { dateItemType } from "./helper"
 import moment from "moment"
-
 import { deepMerge } from "./utils"
-
 import { useFormValues } from "./hooks/useFormValues"
-// import useAdvanced from "./hooks/useAdvanced"
 import { useFormEvents } from "./hooks/useFormEvents"
 import { createFormContext } from "./hooks/useFormContext"
 import { useAutoFocus } from "./hooks/useAutoFocus"
-// import { useModalContext } from "/@/components/Modal"
 
 import { basicProps } from "./props"
-// import { useDesign } from "/@/hooks/web/useDesign"
-import { Recordable, Nullable } from "./types/base"
 import { cloneDeep } from "lodash-es"
 export default defineComponent({
   name: "BasicForm",
   components: { FormItem, NForm },
   props: basicProps,
   emits: ["advanced-change", "reset", "submit", "register"],
-  setup(props, { emit, attrs }) {
+  setup(props, { emit, attrs, slots }) {
     // const modalFn = useModalContext()
-    const formModel = reactive(props.model)
+    const formModel = reactive<Recordable>(cloneDeep(props.model))
+    console.log(formModel)
     const advanceState = reactive<AdvanceState>({
       isAdvanced: true,
       hideAdvanceBtn: false,
@@ -72,27 +40,22 @@ export default defineComponent({
     const prefixCls = "basic-form"
 
     // Get the basic configuration of the form
-    const getProps = computed((): FormProps => {
-      return { ...props, ...unref(propsRef) } as FormProps
-    })
-
-    const getFormClass = computed(() => {
-      return [
-        prefixCls,
-        {
-          [`${prefixCls}--compact`]: unref(getProps).compact
-        }
-      ]
-    })
+    const getProps = computed(
+      (): FormProps => {
+        return { ...props, ...unref(propsRef) } as FormProps
+      }
+    )
 
     // Get uniform row style and Row configuration for the entire form
-    const getRow = computed((): Recordable => {
-      const { baseRowStyle = {}, rowProps } = unref(getProps)
-      return {
-        style: baseRowStyle,
-        ...rowProps
+    const getRow = computed(
+      (): Recordable => {
+        const { baseRowStyle = {}, rowProps } = unref(getProps)
+        return {
+          style: baseRowStyle,
+          ...rowProps
+        }
       }
-    })
+    )
 
     const getBindValue = computed(() => ({ ...attrs, ...props, ...unref(getProps) } as Recordable))
     console.log(getBindValue, attrs, props, getProps)
@@ -109,14 +72,14 @@ export default defineComponent({
           } else {
             const def = []
             defaultValue.forEach((item) => {
-              def.push(moment(item))
+              def.push(moment(item) as never)
             })
             schema.defaultValue = def
           }
         }
       }
       if (unref(getProps).showAdvancedButton) {
-        return schemas.filter((schema) => schema.component !== "Divider") as FormSchema[]
+        return schemas
       } else {
         return schemas as FormSchema[]
       }
@@ -156,9 +119,11 @@ export default defineComponent({
       resetSchema,
       appendSchemaByField,
       removeSchemaByFiled,
-      replaceSchemaByField,
       resetFields,
-      scrollToField
+      scrollToField,
+      register,
+      onFieldChange,
+      emitEvent
     } = useFormEvents({
       emit,
       getProps,
@@ -180,6 +145,7 @@ export default defineComponent({
       () => {
         const { model } = unref(getProps)
         if (!model) return
+        console.log(model)
         setFieldsValue(model)
       },
       {
@@ -219,15 +185,17 @@ export default defineComponent({
 
     function setFormModel(key: string, value: any) {
       formModel[key] = value
+      console.log(formModel, props.model)
       const { validateTrigger } = unref(getBindValue)
       if (!validateTrigger || validateTrigger === "change") {
         validateFields([key]).catch((_) => {})
       }
+      emitEvent(key, "fieldChange", value)
     }
 
     function handleEnterPress(e: KeyboardEvent) {
-      const { autoSubmitOnEnter } = unref(getProps)
-      if (!autoSubmitOnEnter) return
+      // const { autoSubmitOnEnter } = unref(getProps)
+      // if (!autoSubmitOnEnter) return
       if (e.key === "Enter" && e.target && e.target instanceof HTMLElement) {
         const target: HTMLElement = e.target as HTMLElement
         if (target && target.tagName && target.tagName.toUpperCase() == "INPUT") {
@@ -245,18 +213,41 @@ export default defineComponent({
       setProps,
       removeSchemaByFiled,
       appendSchemaByField,
-      replaceSchemaByField,
       clearValidate,
       validateFields,
       validate,
       submit: handleSubmit,
-      scrollToField: scrollToField
+      scrollToField: scrollToField,
+      onFieldChange
     }
 
     onMounted(() => {
       initDefault()
       emit("register", formActionType)
     })
+
+    const renderFormItem = (): VNodeChild => {
+      const schemas = getSchema.value
+      if (getSchema.value)
+        return (
+          <>
+            {schemas.map((schema) => {
+              return (
+                <FormItem
+                  schema={schema}
+                  form-props={getProps}
+                  form-model={formModel}
+                  set-form-model={setFormModel}
+                  register-field={register}
+                >
+                  {renderSlot(slots, "default", undefined)}
+                </FormItem>
+              )
+            })}
+          </>
+        )
+      else return null
+    }
 
     return {
       getBindValue,
@@ -270,10 +261,27 @@ export default defineComponent({
       getSchema,
       formActionType: formActionType as any,
       setFormModel,
-      getFormClass,
+      renderFormItem,
       getFormActionBindProps: computed((): Recordable => ({ ...getProps.value, ...advanceState })),
       ...formActionType
     }
+  },
+  render() {
+    const { getBindValue, formModel, $slots, getRow, renderFormItem } = this
+    return h(
+      resolveComponent("n-form"),
+      {
+        ref: "formElRef",
+        ...getBindValue,
+        model: formModel
+      },
+      [
+        h(resolveComponent("n-grid"), { ...getRow }, [
+          renderSlot($slots, "formHeader"),
+          renderFormItem(),
+          renderSlot($slots, "formFooter")
+        ])
+      ]
+    )
   }
 })
-</script>

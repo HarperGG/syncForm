@@ -1,7 +1,8 @@
 import { FormProps, FormActionType, UseFormReturnType, FormSchema } from "../types/form"
 import { NamePath } from "ant-design-vue/lib/form/interface"
-import { DynamicProps, Recordable, Nullable } from "../types/base"
+import { DynamicProps } from "../types/base"
 import { ref, onUnmounted, unref, nextTick, watch } from "vue"
+import { EventCallBack } from "../types/event"
 
 export declare type ValidateFields = (nameList?: NamePath[]) => Promise<Recordable>
 
@@ -32,7 +33,6 @@ export function useForm(props?: Props): UseFormReturnType {
   }
 
   function register(instance: FormActionType) {
-    console.log(instance)
     onUnmounted(() => {
       formRef.value = null
       loadedRef.value = null
@@ -40,6 +40,7 @@ export function useForm(props?: Props): UseFormReturnType {
     if (unref(loadedRef) && instance === unref(formRef)) return
 
     formRef.value = instance
+    // console.log(instance)
     loadedRef.value = true
 
     watch(
@@ -88,21 +89,27 @@ export function useForm(props?: Props): UseFormReturnType {
     removeSchemaByFiled: async (field: string | string[]) => {
       unref(formRef)?.removeSchemaByFiled(field)
     },
+    replaceSchemaByField: async (schema: FormSchema, predFiled: string, nextFiled: string) => {
+      const form = await getForm()
+      form?.replaceSchemaByField(schema, predFiled, nextFiled)
+    },
 
     // TODO promisify
     getFieldsValue: <T>() => {
       return unref(formRef)?.getFieldsValue() as T
     },
-
     setFieldsValue: async <T>(values: T) => {
       const form = await getForm()
       form.setFieldsValue<T>(values)
     },
-
+    onFieldChange: async (values, cb: EventCallBack) => {
+      const form = await getForm()
+      form.onFieldChange(values, cb)
+    },
     appendSchemaByField: async (
       schema: FormSchema,
       prefixField: string | undefined,
-      first: boolean
+      first?: boolean
     ) => {
       const form = await getForm()
       form.appendSchemaByField(schema, prefixField, first)
